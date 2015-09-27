@@ -1,0 +1,11 @@
+{
+  "name": "react-native-webrtc-server",
+  "version": "0.0.1",
+  "description": "react-native-webrtc server",
+  "main": "app.js",
+  "author": "Oney",
+  "dependencies": {
+    "express": "^4.11.2",
+    "socket.io": "1.3.4"
+  }
+}
