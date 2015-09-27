@@ -4,6 +4,12 @@
   "description": "react-native-webrtc server",
   "main": "app.js",
   "author": "Oney",
+  "engines": {
+    "node": "v4.1.0"
+  },
+  "scripts": {
+    "start": "node app.js"
+  },
   "dependencies": {
     "express": "^4.11.2",
     "socket.io": "1.3.4"

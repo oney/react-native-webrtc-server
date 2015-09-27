@@ -7,7 +7,7 @@ var roomList = {};
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
 });
-http.listen(80, function(){
+http.listen(process.env.PORT || 80, function(){
   console.log('listening on *:80');
 });
 
