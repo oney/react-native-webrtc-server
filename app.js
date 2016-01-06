@@ -1,14 +1,23 @@
-var app = require('express')();
-var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var express = require('express');
+var app = express();
+var fs = require('fs');
+var options = {
+  key: fs.readFileSync('./fake-keys/privatekey.pem'),
+  cert: fs.readFileSync('./fake-keys/certificate.pem')
+};
+var serverPort = 4443;
+var https = require('https');
+var server = https.createServer(options, app);
+var io = require('socket.io')(server);
 
 var roomList = {};
 
 app.get('/', function(req, res){
+  console.log('get /');
   res.sendFile(__dirname + '/index.html');
 });
-http.listen(process.env.PORT || 80, function(){
-  console.log('listening on *:80');
+server.listen(serverPort, function(){
+  console.log('server up and running at %s port', serverPort);
 });
 
 function socketIdsInRoom(name) {
