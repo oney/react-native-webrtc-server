@@ -5,6 +5,13 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 </head>
 <body>
+<div id="textRoom" style="display: none;">
+  <div id="textRoomContent">
+    <h3>Text Room</h3>
+  </div>
+  <input id="textRoomInput" >
+  <button onclick="textRoomPress();">Send</button>
+</div>
 <video id="selfView" autoplay></video>
 <div id="remoteViewContainer"></div>
 <div id="roomIDContainer">
@@ -74,6 +81,9 @@ function createPC(socketId, isOffer) {
 
   pc.oniceconnectionstatechange = function(event) {
     console.log('oniceconnectionstatechange', event);
+    if (event.target.iceConnectionState === 'connected') {
+      createDataChannel();
+    }
   };
   pc.onsignalingstatechange = function(event) {
     console.log('onsignalingstatechange', event);
@@ -88,6 +98,34 @@ function createPC(socketId, isOffer) {
     remoteViewContainer.appendChild(element);
   };
   pc.addStream(localStream);
+  function createDataChannel() {
+    if (pc.textDataChannel) {
+      return;
+    }
+    var dataChannel = pc.createDataChannel("text");
+
+    dataChannel.onerror = function (error) {
+      console.log("dataChannel.onerror", error);
+    };
+
+    dataChannel.onmessage = function (event) {
+      console.log("dataChannel.onmessage:", event.data);
+      var content = document.getElementById('textRoomContent');
+      content.innerHTML = content.innerHTML + '<p>' + socketId + ': ' + event.data + '</p>';
+    };
+
+    dataChannel.onopen = function () {
+      console.log('dataChannel.onopen');
+      var textRoom = document.getElementById('textRoom');
+      textRoom.style.display = "block";
+    };
+
+    dataChannel.onclose = function () {
+      console.log("dataChannel.onclose");
+    };
+
+    pc.textDataChannel = dataChannel;
+  }
   return pc;
 }
 
@@ -151,6 +189,20 @@ function press() {
     var roomIDContainer = document.getElementById('roomIDContainer');
     roomIDContainer.parentElement.removeChild(roomIDContainer);
     join(roomID);
+  }
+}
+function textRoomPress() {
+  var text = document.getElementById('textRoomInput').value;
+  if (text == "") {
+    alert('Enter something');
+  } else {
+    document.getElementById('textRoomInput').value = '';
+    var content = document.getElementById('textRoomContent');
+    content.innerHTML = content.innerHTML + '<p>' + 'Me' + ': ' + text + '</p>';
+    for (var key in pcPeers) {
+      var pc = pcPeers[key];
+      pc.textDataChannel.send(text);
+    }
   }
 }
 
