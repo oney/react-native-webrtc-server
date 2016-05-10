@@ -8,6 +8,7 @@
     "node": "v4.1.0"
   },
   "scripts": {
+    "open": "heroku open",
     "logs": "heroku logs --tail",
     "deploy": "git push heroku master",
     "start": "node app.js"
