@@ -8,6 +8,8 @@
     "node": "v4.1.0"
   },
   "scripts": {
+    "logs": "heroku logs --tail",
+    "deploy": "git push heroku master",
     "start": "node app.js"
   },
   "dependencies": {
