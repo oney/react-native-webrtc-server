@@ -38,6 +38,7 @@ function getLocalStream() {
   navigator.getUserMedia({ "audio": true, "video": true }, function (stream) {
     localStream = stream;
     selfView.src = URL.createObjectURL(stream);
+    selfView.muted = true;
   }, logError);
 }
 
