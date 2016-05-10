@@ -15,7 +15,7 @@
 <video id="selfView" autoplay></video>
 <div id="remoteViewContainer"></div>
 <div id="roomIDContainer">
-  <input id="roomID">
+  <input id="roomID" value="abc">
   <button onclick="press();">Join/Create room</button>
 </div>
 </body>
@@ -40,7 +40,7 @@ var twilioIceServers = [
      //   credential: 'MPnnojPRoPDI+B3kLONGF9P440Lb8NkrTq+FxxJBVro=' } 
 ];
 var configuration = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
-configuration.iceServers = twilioIceServers;
+// configuration.iceServers = twilioIceServers;
 
 var pcPeers = {};
 var selfView = document.getElementById("selfView");
