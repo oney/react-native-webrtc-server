@@ -11,10 +11,11 @@
     "open": "heroku open",
     "logs": "heroku logs --tail",
     "deploy": "git push heroku master",
-    "start": "node app.js"
+    "start": "LOCAL=TRUE node app.js"
   },
   "dependencies": {
     "express": "^4.11.2",
+    "open": "0.0.5",
     "socket.io": "1.3.4"
   }
 }
