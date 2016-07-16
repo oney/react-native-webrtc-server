@@ -14,22 +14,42 @@ const selfView = document.getElementById('selfView');
 const remoteViewContainer = document.getElementById('remoteViewContainer');
 let localStream;
 
+const logError = (error) => {
+  console.log('logError: ', error);
+};
+
+const press = () => {
+  const roomID = document.getElementById('roomID').value;
+  if (roomID === '') {
+    alert('Please enter room ID');
+  } else {
+    const roomIDContainer = document.getElementById('roomIDContainer');
+    roomIDContainer.parentElement.removeChild(roomIDContainer);
+    join(roomID);
+  }
+};
+
+const textRoomPress = () => {
+  const text = document.getElementById('textRoomInput').value;
+  if (text === '') {
+    alert('Enter something');
+  } else {
+    document.getElementById('textRoomInput').value = '';
+    const content = document.getElementById('textRoomContent');
+    content.innerHTML = `${content.innerHTML}<p>Me: ${text}</p>`;
+    for (const key in pcPeers) {
+      const pc = pcPeers[key];
+      pc.textDataChannel.send(text);
+    }
+  }
+};
+
 const getLocalStream = () => {
   navigator.getUserMedia({ 'audio': true, 'video': true }, (stream) => {
     localStream = stream;
     selfView.src = URL.createObjectURL(stream);
     selfView.muted = true;
   }, logError);
-};
-
-const join = (roomID) => {
-  socket.emit('join', roomID, (socketIds) => {
-    console.log('join', socketIds);
-    for (var i in socketIds) {
-      const socketId = socketIds[i];
-      createPC(socketId, true);
-    }
-  });
 };
 
 const createPC = (socketId, isOffer) => {
@@ -51,6 +71,35 @@ const createPC = (socketId, isOffer) => {
         socket.emit('exchange', { 'to': socketId, 'sdp': pc.localDescription });
       }, logError);
     }, logError);
+  };
+
+  const createDataChannel = () => {
+    if (pc.textDataChannel) {
+      return;
+    }
+    const dataChannel = pc.createDataChannel('text');
+
+    dataChannel.onerror = (error) => {
+      console.log('dataChannel.onerror', error);
+    };
+
+    dataChannel.onmessage = (event) => {
+      console.log('dataChannel.onmessage:', event.data);
+      const content = document.getElementById('textRoomContent');
+      content.innerHTML = `${content.innerHTML}<p>${socketId}: ${event.data}</p>`;
+    };
+
+    dataChannel.onopen = () => {
+      console.log('dataChannel.onopen');
+      const textRoom = document.getElementById('textRoom');
+      textRoom.style.display = 'block';
+    };
+
+    dataChannel.onclose = () => {
+      console.log('dataChannel.onclose');
+    };
+
+    pc.textDataChannel = dataChannel;
   };
 
   pc.onnegotiationneeded = () => {
@@ -81,35 +130,18 @@ const createPC = (socketId, isOffer) => {
   };
   pc.addStream(localStream);
 
-  const createDataChannel = () => {
-    if (pc.textDataChannel) {
-      return;
-    }
-    const dataChannel = pc.createDataChannel('text');
-
-    dataChannel.onerror = (error) => {
-      console.log("dataChannel.onerror", error);
-    };
-
-    dataChannel.onmessage = (event) => {
-      console.log("dataChannel.onmessage:", event.data);
-      const content = document.getElementById('textRoomContent');
-      content.innerHTML = `${content.innerHTML}<p>${socketId}: ${event.data}</p>`;
-    };
-
-    dataChannel.onopen = () => {
-      console.log('dataChannel.onopen');
-      const textRoom = document.getElementById('textRoom');
-      textRoom.style.display = 'block';
-    };
-
-    dataChannel.onclose = () => {
-      console.log('dataChannel.onclose');
-    };
-
-    pc.textDataChannel = dataChannel;
-  };
   return pc;
+};
+
+
+const join = (roomID) => {
+  socket.emit('join', roomID, (socketIds) => {
+    console.log('join', socketIds);
+    for (var i in socketIds) {
+      const socketId = socketIds[i];
+      createPC(socketId, true);
+    }
+  });
 };
 
 const exchange = (data) => {
@@ -161,33 +193,3 @@ socket.on('connect', (data) => {
   console.log('connect');
   getLocalStream();
 });
-
-const logError = (error) => {
-  console.log('logError: ', error);
-};
-
-const press = () => {
-  const roomID = document.getElementById('roomID').value;
-  if (roomID === '') {
-    alert('Please enter room ID');
-  } else {
-    const roomIDContainer = document.getElementById('roomIDContainer');
-    roomIDContainer.parentElement.removeChild(roomIDContainer);
-    join(roomID);
-  }
-};
-
-const textRoomPress = () => {
-  const text = document.getElementById('textRoomInput').value;
-  if (text === '') {
-    alert('Enter something');
-  } else {
-    document.getElementById('textRoomInput').value = '';
-    const content = document.getElementById('textRoomContent');
-    content.innerHTML = content.innerHTML + '<p>' + 'Me' + ': ' + text + '</p>';
-    for (var key in pcPeers) {
-      var pc = pcPeers[key];
-      pc.textDataChannel.send(text);
-    }
-  }
-};
