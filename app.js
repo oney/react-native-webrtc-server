@@ -7,8 +7,7 @@ const RTCSessionDescription = window.RTCSessionDescription ||
 navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia ||
   navigator.webkitGetUserMedia || navigator.msGetUserMedia;
 
-const configuration = { 'iceServers': [{ 'url': 'stun:stun.l.google.com:19302' }] };
-
+const configuration = { iceServers: [{ url: 'stun:stun.l.google.com:19302' }] };
 const pcPeers = {};
 const selfView = document.getElementById('selfView');
 const remoteViewContainer = document.getElementById('remoteViewContainer');
@@ -16,17 +15,6 @@ let localStream;
 
 const logError = (error) => {
   console.log('logError: ', error);
-};
-
-const press = () => {
-  const roomID = document.getElementById('roomID').value;
-  if (roomID === '') {
-    alert('Please enter room ID');
-  } else {
-    const roomIDContainer = document.getElementById('roomIDContainer');
-    roomIDContainer.parentElement.removeChild(roomIDContainer);
-    join(roomID);
-  }
 };
 
 const textRoomPress = () => {
@@ -45,7 +33,7 @@ const textRoomPress = () => {
 };
 
 const getLocalStream = () => {
-  navigator.getUserMedia({ 'audio': true, 'video': true }, (stream) => {
+  navigator.getUserMedia({ audio: true, video: true }, (stream) => {
     localStream = stream;
     selfView.src = URL.createObjectURL(stream);
     selfView.muted = true;
@@ -133,7 +121,6 @@ const createPC = (socketId, isOffer) => {
   return pc;
 };
 
-
 const join = (roomID) => {
   socket.emit('join', roomID, (socketIds) => {
     console.log('join', socketIds);
@@ -142,6 +129,17 @@ const join = (roomID) => {
       createPC(socketId, true);
     }
   });
+};
+
+const press = () => {
+  const roomID = document.getElementById('roomID').value;
+  if (roomID === '') {
+    alert('Please enter room ID');
+  } else {
+    const roomIDContainer = document.getElementById('roomIDContainer');
+    roomIDContainer.parentElement.removeChild(roomIDContainer);
+    join(roomID);
+  }
 };
 
 const exchange = (data) => {
