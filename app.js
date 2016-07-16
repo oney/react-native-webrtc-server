@@ -25,7 +25,9 @@ const socketIdsInRoom = (name) => {
   if (socketIds) {
     const collection = [];
     for (const key in socketIds) {
-      collection.push(key);
+      if ({}.hasOwnProperty.call(socketIds, key)) {
+        collection.push(key);
+      }
     }
     return collection;
   }
