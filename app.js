@@ -18,6 +18,7 @@ if (process.env.LOCAL) {
   server = http.createServer(app);
 }
 const io = require('socket.io')(server);
+app.use(express.static(__dirname));
 
 const socketIdsInRoom = (name) => {
   const socketIds = io.nsps['/'].adapter.rooms[name];
