@@ -22,13 +22,12 @@ app.use(express.static(__dirname));
 
 const socketIdsInRoom = (name) => {
   const socketIds = io.nsps['/'].adapter.rooms[name];
+  console.log('socketIds', socketIds);
   if (socketIds) {
     const collection = [];
-    for (const key in socketIds) {
-      if ({}.hasOwnProperty.call(socketIds, key)) {
-        collection.push(key);
-      }
-    }
+    Object.keys(socketIds).forEach((key) => {
+      collection.push(key);
+    });
     return collection;
   }
   return [];

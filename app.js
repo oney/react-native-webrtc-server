@@ -25,10 +25,10 @@ const textRoomPress = () => {
     document.getElementById('textRoomInput').value = '';
     const content = document.getElementById('textRoomContent');
     content.innerHTML = `${content.innerHTML}<p>Me: ${text}</p>`;
-    for (const key in pcPeers) {
+    Object.keys(pcPeers).forEach((key) => {
       const pc = pcPeers[key];
       pc.textDataChannel.send(text);
-    }
+    });
   }
 };
 
@@ -45,9 +45,15 @@ const createPC = (socketId, isOffer) => {
   pcPeers[socketId] = pc;
 
   pc.onicecandidate = (event) => {
+    // This happens whenever the local ICE agent needs to deliver a message to
+    // the other peer through the signaling server.
+    // This lets the ICE agent perform negotiation with the remote peer without the browser
+    // itself needing to know any specifics about the technology being used for signaling;
+    // simply implement this method to use whatever messaging technology you choose to send
+    //  the ICE candidate to the remote peer.
     console.log('onicecandidate', event);
     if (event.candidate) {
-      socket.emit('exchange', { 'to': socketId, 'candidate': event.candidate });
+      socket.emit('exchange', { to: socketId, candidate: event.candidate });
     }
   };
 
@@ -56,7 +62,7 @@ const createPC = (socketId, isOffer) => {
       console.log('createOffer', desc);
       pc.setLocalDescription(desc, () => {
         console.log('setLocalDescription', pc.localDescription);
-        socket.emit('exchange', { 'to': socketId, 'sdp': pc.localDescription });
+        socket.emit('exchange', { to: socketId, sdp: pc.localDescription });
       }, logError);
     }, logError);
   };
@@ -90,6 +96,8 @@ const createPC = (socketId, isOffer) => {
     pc.textDataChannel = dataChannel;
   };
 
+  // This event is fired when a change has occurred which requires session negotiation.
+  // The most common scenario in which this will happen is at the beginning of a connection.
   pc.onnegotiationneeded = () => {
     console.log('onnegotiationneeded');
     if (isOffer) {
@@ -124,7 +132,7 @@ const createPC = (socketId, isOffer) => {
 const join = (roomID) => {
   socket.emit('join', roomID, (socketIds) => {
     console.log('join', socketIds);
-    for (var i in socketIds) {
+    for (let i = 0; i < socketIds.length; ++i) {
       const socketId = socketIds[i];
       createPC(socketId, true);
     }
@@ -159,7 +167,7 @@ const exchange = (data) => {
           console.log('createAnswer', desc);
           pc.setLocalDescription(desc, () => {
             console.log('setLocalDescription', pc.localDescription);
-            socket.emit('exchange', { 'to': fromId, 'sdp': pc.localDescription });
+            socket.emit('exchange', { to: fromId, sdp: pc.localDescription });
           }, logError);
         }, logError);
       }
@@ -187,7 +195,7 @@ socket.on('leave', (socketId) => {
   leave(socketId);
 });
 
-socket.on('connect', (data) => {
+socket.on('connect', () => {
   console.log('connect');
   getLocalStream();
 });
