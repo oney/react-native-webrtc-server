@@ -41,7 +41,7 @@ app.get('/', (req, res) => {
 server.listen(serverPort, () => {
   console.log('server up and running at %s port', serverPort);
   if (process.env.LOCAL) {
-    open(`https://localhost: ${serverPort}`);
+    open(`https://localhost:${serverPort}`);
   }
 });
 
