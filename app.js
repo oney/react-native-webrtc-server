@@ -1,72 +1,201 @@
-var express = require('express');
-var app = express();
-var fs = require('fs');
-var open = require('open');
-var options = {
-  key: fs.readFileSync('./fake-keys/privatekey.pem'),
-  cert: fs.readFileSync('./fake-keys/certificate.pem')
+const socket = io();
+const RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection ||
+  window.webkitRTCPeerConnection || window.msRTCPeerConnection;
+const RTCSessionDescription = window.RTCSessionDescription ||
+  window.mozRTCSessionDescription || window.webkitRTCSessionDescription ||
+  window.msRTCSessionDescription;
+navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia ||
+  navigator.webkitGetUserMedia || navigator.msGetUserMedia;
+
+const configuration = { iceServers: [{ url: 'stun:stun.l.google.com:19302' }] };
+const pcPeers = {};
+const selfView = document.getElementById('selfView');
+const remoteViewContainer = document.getElementById('remoteViewContainer');
+let localStream;
+
+const logError = (error) => {
+  console.log('logError: ', error);
 };
-var serverPort = (process.env.PORT  || 4443);
-var https = require('https');
-var http = require('http');
-var server;
-if (process.env.LOCAL) {
-  server = https.createServer(options, app);
-} else {
-  server = http.createServer(app);
-}
-var io = require('socket.io')(server);
 
-var roomList = {};
-
-app.get('/', function(req, res){
-  console.log('get /');
-  res.sendFile(__dirname + '/index.html');
-});
-server.listen(serverPort, function(){
-  console.log('server up and running at %s port', serverPort);
-  if (process.env.LOCAL) {
-    open('https://localhost:' + serverPort)
-  }
-});
-
-function socketIdsInRoom(name) {
-  var socketIds = io.nsps['/'].adapter.rooms[name];
-  if (socketIds) {
-    var collection = [];
-    for (var key in socketIds) {
-      collection.push(key);
-    }
-    return collection;
+const textRoomPress = () => {
+  const text = document.getElementById('textRoomInput').value;
+  if (text === '') {
+    alert('Enter something');
   } else {
-    return [];
+    document.getElementById('textRoomInput').value = '';
+    const content = document.getElementById('textRoomContent');
+    content.innerHTML = `${content.innerHTML}<p>Me: ${text}</p>`;
+    Object.keys(pcPeers).forEach((key) => {
+      const pc = pcPeers[key];
+      pc.textDataChannel.send(text);
+    });
   }
-}
+};
 
-io.on('connection', function(socket){
-  console.log('connection');
-  socket.on('disconnect', function(){
-    console.log('disconnect');
-    if (socket.room) {
-      var room = socket.room;
-      io.to(room).emit('leave', socket.id);
-      socket.leave(room);
+const getLocalStream = () => {
+  navigator.getUserMedia({ audio: true, video: true }, (stream) => {
+    localStream = stream;
+    selfView.src = URL.createObjectURL(stream);
+    selfView.muted = true;
+  }, logError);
+};
+
+const createPC = (socketId, isOffer) => {
+  const pc = new RTCPeerConnection(configuration);
+  pcPeers[socketId] = pc;
+
+  pc.onicecandidate = (event) => {
+    // This happens whenever the local ICE agent needs to deliver a message to
+    // the other peer through the signaling server.
+    // This lets the ICE agent perform negotiation with the remote peer without the browser
+    // itself needing to know any specifics about the technology being used for signaling;
+    // simply implement this method to use whatever messaging technology you choose to send
+    //  the ICE candidate to the remote peer.
+    console.log('onicecandidate', event);
+    if (event.candidate) {
+      socket.emit('exchange', { to: socketId, candidate: event.candidate });
+    }
+  };
+
+  const createOffer = () => {
+    pc.createOffer((desc) => {
+      console.log('createOffer', desc);
+      pc.setLocalDescription(desc, () => {
+        console.log('setLocalDescription', pc.localDescription);
+        socket.emit('exchange', { to: socketId, sdp: pc.localDescription });
+      }, logError);
+    }, logError);
+  };
+
+  const createDataChannel = () => {
+    if (pc.textDataChannel) {
+      return;
+    }
+    const dataChannel = pc.createDataChannel('text');
+
+    dataChannel.onerror = (error) => {
+      console.log('dataChannel.onerror', error);
+    };
+
+    dataChannel.onmessage = (event) => {
+      console.log('dataChannel.onmessage:', event.data);
+      const content = document.getElementById('textRoomContent');
+      content.innerHTML = `${content.innerHTML}<p>${socketId}: ${event.data}</p>`;
+    };
+
+    dataChannel.onopen = () => {
+      console.log('dataChannel.onopen');
+      const textRoom = document.getElementById('textRoom');
+      textRoom.style.display = 'block';
+    };
+
+    dataChannel.onclose = () => {
+      console.log('dataChannel.onclose');
+    };
+
+    pc.textDataChannel = dataChannel;
+  };
+
+  // This event is fired when a change has occurred which requires session negotiation.
+  // The most common scenario in which this will happen is at the beginning of a connection.
+  pc.onnegotiationneeded = () => {
+    console.log('onnegotiationneeded');
+    if (isOffer) {
+      createOffer();
+    }
+  };
+
+  pc.oniceconnectionstatechange = (event) => {
+    console.log('oniceconnectionstatechange', event);
+    if (event.target.iceConnectionState === 'connected') {
+      createDataChannel();
+    }
+  };
+
+  pc.onsignalingstatechange = (event) => {
+    console.log('onsignalingstatechange', event);
+  };
+
+  pc.onaddstream = (event) => {
+    console.log('onaddstream', event);
+    const element = document.createElement('video');
+    element.id = `remoteView${socketId}`;
+    element.autoplay = 'autoplay';
+    element.src = URL.createObjectURL(event.stream);
+    remoteViewContainer.appendChild(element);
+  };
+  pc.addStream(localStream);
+
+  return pc;
+};
+
+const join = (roomID) => {
+  socket.emit('join', roomID, (socketIds) => {
+    console.log('join', socketIds);
+    for (let i = 0; i < socketIds.length; ++i) {
+      const socketId = socketIds[i];
+      createPC(socketId, true);
     }
   });
+};
 
-  socket.on('join', function(name, callback){
-    console.log('join', name);
-    var socketIds = socketIdsInRoom(name);
-    callback(socketIds);
-    socket.join(name);
-    socket.room = name;
-  });
+const press = () => {
+  const roomID = document.getElementById('roomID').value;
+  if (roomID === '') {
+    alert('Please enter room ID');
+  } else {
+    const roomIDContainer = document.getElementById('roomIDContainer');
+    roomIDContainer.parentElement.removeChild(roomIDContainer);
+    join(roomID);
+  }
+};
 
+const exchange = (data) => {
+  const fromId = data.from;
+  let pc;
+  if (fromId in pcPeers) {
+    pc = pcPeers[fromId];
+  } else {
+    pc = createPC(fromId, false);
+  }
 
-  socket.on('exchange', function(data){
-    console.log('exchange', data);
-    data.from = socket.id;
-    var to = io.sockets.connected[data.to];
-    to.emit('exchange', data);
-  });
+  if (data.sdp) {
+    console.log('exchange sdp', data);
+    pc.setRemoteDescription(new RTCSessionDescription(data.sdp), () => {
+      if (pc.remoteDescription.type === 'offer') {
+        pc.createAnswer((desc) => {
+          console.log('createAnswer', desc);
+          pc.setLocalDescription(desc, () => {
+            console.log('setLocalDescription', pc.localDescription);
+            socket.emit('exchange', { to: fromId, sdp: pc.localDescription });
+          }, logError);
+        }, logError);
+      }
+    }, logError);
+  } else {
+    console.log('exchange candidate', data);
+    pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+  }
+};
+
+const leave = (socketId) => {
+  console.log('leave', socketId);
+  const pc = pcPeers[socketId];
+  pc.close();
+  delete pcPeers[socketId];
+  const video = document.getElementById(`remoteView${socketId}`);
+  if (video) video.remove();
+};
+
+socket.on('exchange', (data) => {
+  exchange(data);
+});
+
+socket.on('leave', (socketId) => {
+  leave(socketId);
+});
+
+socket.on('connect', () => {
+  console.log('connect');
+  getLocalStream();
 });
